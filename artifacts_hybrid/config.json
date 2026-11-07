@@ -1,0 +1,22 @@
+{
+  "nn_weight": 0.5,
+  "window": 30,
+  "rul_cap": 125,
+  "sensors": [
+    "Sensor_2",
+    "Sensor_3",
+    "Sensor_4",
+    "Sensor_7",
+    "Sensor_8",
+    "Sensor_9",
+    "Sensor_11",
+    "Sensor_12",
+    "Sensor_13",
+    "Sensor_14",
+    "Sensor_15",
+    "Sensor_17",
+    "Sensor_20",
+    "Sensor_21"
+  ],
+  "n_nn_models": 3
+}

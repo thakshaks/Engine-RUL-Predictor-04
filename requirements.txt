@@ -1,0 +1,9 @@
+pandas
+scikit-learn
+numpy
+mlflow
+tensorflow
+joblib
+fastapi
+uvicorn
+keras>=3.10

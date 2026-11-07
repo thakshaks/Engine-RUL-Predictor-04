@@ -1,0 +1,26 @@
+artifact_path: e:/P2/Python/TurbofanEngine/git/mlruns2/models/m-7548105bc8d0465b9f6efd66c86785b0/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.12.7
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.7.2
+    skops_trusted_types:
+    - sklearn.tree._tree.Tree
+    - xgboost.core.Booster
+    - xgboost.sklearn.XGBRegressor
+mlflow_version: 3.17.1
+model_id: m-7548105bc8d0465b9f6efd66c86785b0
+model_size_bytes: 514860
+model_uuid: m-7548105bc8d0465b9f6efd66c86785b0
+prompts: null
+run_id: f3cdffa235524817a18e00e4f08e16a4
+utc_time_created: '2026-10-19 07:14:23.250941'

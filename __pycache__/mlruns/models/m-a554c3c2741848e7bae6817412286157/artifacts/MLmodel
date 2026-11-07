@@ -1,0 +1,23 @@
+artifact_path: e:/P2/Python/TurbofanEngine/git_FD004/mlruns/models/m-a554c3c2741848e7bae6817412286157/artifacts
+flavors:
+  python_function:
+    config:
+      device: null
+    data: data
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pytorch
+    pickle_module_name: mlflow.pytorch.pickle_module
+    python_version: 3.12.7
+  pytorch:
+    code: null
+    model_data: data
+    pytorch_version: 2.10.0+cpu
+mlflow_version: 3.17.1
+model_id: m-a554c3c2741848e7bae6817412286157
+model_size_bytes: 1044496
+model_uuid: m-a554c3c2741848e7bae6817412286157
+prompts: null
+run_id: 50accdc1313b487faa47055aab9d92fb
+utc_time_created: '2026-10-24 16:33:47.703054'
