@@ -12,11 +12,11 @@ from pathlib import Path
 WINDOW = 30
 NN_WEIGHT = 0.45          # Must equal your blend weight
 state = {}
-USE_XGB = False  
+USE_XGB = True 
 
 BASE = Path("E:/P2/Python/TurbofanEngine/git_FD004")
 NN_PATH = BASE / "models" / "model.keras"
-XGB_PATH = BASE / "models" / "xgb.json" 
+XGB_PATH = BASE / "models" / "model.skops" 
 PRE_PATH = BASE / "artifacts_hybrid" / "preproc.joblib"
 
 
@@ -50,86 +50,52 @@ class Payload(BaseModel):
     sensor_data: list
 
 # --- CUSTOM PREPROCESS FUNCTION ---
-def preprocess(raw, pre) -> np.ndarray:
-    """
-    Takes the raw 30-step numpy array, converts to DataFrame using training column names,
-    predicts the flight condition cluster via KMeans, and normalizes using cluster mean/std.
-    """
-    km = pre["km"]
-    sensors = pre["sensors"]
-    
-    # Get expected feature names from the KMeans model
-    feature_names = list(km.feature_names_in_)
-    
-    
-    # Construct a DataFrame from the raw array matching expected feature columns + sensors
-    # Ensure your client payload sends columns in the exact order expected here.
-    total_cols = feature_names + [s for s in sensors if s not in feature_names]
-    df_raw = pd.DataFrame(raw, columns=total_cols[:raw.shape[1]])
-    
-    
-    # Predict operating condition cluster
-    cond = km.predict(df_raw[feature_names])
-    
-    # Retrieve cluster-specific means and standard deviations
+def expected_cols(pre):
+    return list(pre["km"].feature_names_in_) + list(pre["sensors"]) + ["Cycles"]   # 3 + 14 + 1 = 18
+
+def preprocess(raw, pre):
+    km, sensors = pre["km"], pre["sensors"]
+    df_raw = pd.DataFrame(raw, columns=expected_cols(pre))
+    cond = km.predict(df_raw[list(km.feature_names_in_)])
     mu = pre["mean"].loc[cond, sensors].to_numpy()
     sd = pre["std"].loc[cond, sensors].to_numpy()
+    z = (df_raw[sensors].to_numpy(dtype=float) - mu) / sd
+    return z, float(df_raw["Cycles"].iloc[-1])
 
-    
-    print("Preprocessing Successful")
-    y=(df_raw[sensors].to_numpy(dtype=float) - mu) / sd
-    print("Normalized sensor data shape:", y.shape)
-    
-    # Normalize sensor data
-    return y
+def window_features(X, cycles):
+    """Tabular summary of each window for XGBoost."""
+    last = X[:, -1, :]
+    mean10 = X[:, -10:, :].mean(axis=1)
+    std10 = X[:, -10:, :].std(axis=1)
+    t = np.arange(X.shape[1], dtype=np.float32)
+    tc = t - t.mean()
+    slope = (tc[None, :, None] * (X - X.mean(axis=1, keepdims=True))).sum(axis=1) / (tc ** 2).sum()
+    return np.hstack([last, mean10, std10, slope, cycles[:, None]])
 
-def make_tabular(z: np.ndarray) -> np.ndarray:
-    """
-    Flattens your (30, Features) window into a 2D array (1, 30 * Features)
-    if your XGBoost model expects flattened tabular features.
-    """
-    return z.reshape(1, -1)
-
-@asynccontextmanager
-async def lifespan(app):
-    # Load your models and pre-fitted joblib scaler artifact on startup
-    state["nn"] = tf.keras.models.load_model("E:/P2/Python/TurbofanEngine/git_FD004/models/model.keras")
-    state["xgb"] = xgb.XGBRegressor()
-    state["xgb"].load_model("E:/P2/Python/TurbofanEngine/git_FD004/models/model.skops")
-    state["pre"] = joblib.load("E:/P2/Python/TurbofanEngine/git_FD004/artifacts_hybrid/preproc.joblib")
-    yield
+def make_tabular(z, cycle):
+    X = z[None, ...].astype(np.float32)
+    return window_features(X, np.array([cycle], dtype=np.float32))
 
 
 @app.post("/predict")
 def predict(p: Payload):
     raw = np.asarray(p.sensor_data, dtype=float)
-    print("Received raw sensor data shape:", raw.shape)
-    if raw.shape[0] != WINDOW:
-        raise HTTPException(400, f"Need exactly {WINDOW} time steps.")
-    
+    n_cols = len(expected_cols(state["pre"]))
+    if raw.ndim != 2 or raw.shape != (WINDOW, n_cols):
+        raise HTTPException(400, f"Expected shape ({WINDOW}, {n_cols}), got {raw.shape}")
     try:
-        # 1. Preprocess the raw data using the joblib scaler artifact
-        z = preprocess(raw, state["pre"])                 # Shape: (30, F)
-        print(z)
-
-        # 2. Neural Network prediction (expects 3D tensor: batch, window, features)
-        p_nn = float(state["nn"](z[None, ...], training=False).numpy().ravel()[0])
-        
-        
-        # 3. Optional XGBoost prediction
-        if USE_XGB and state["xgb"] is not None:
-            p_xgb = float(state["xgb"].predict(make_tabular(z))[0])
-            # Corrected ensemble calculation syntax
-            rul = NN_WEIGHT * p_nn + (1 - NN_WEIGHT) * p_xgb
+        z, cycle = preprocess(raw, state["pre"])
+        p_nn = float(state["nn"](z[None, ...].astype(np.float32), training=False).numpy().ravel()[0])
+        if USE_XGB:
+            T = make_tabular(z, cycle)
+            if T.shape[1] != state["xgb"].n_features_in_:
+                raise ValueError(f"{T.shape[1]} features, XGB expects {state['xgb'].n_features_in_}")
+            rul = NN_WEIGHT * p_nn + (1 - NN_WEIGHT) * float(state["xgb"].predict(T)[0])
         else:
             rul = p_nn
-        
-        print(rul)
-         
     except Exception as e:
         raise HTTPException(500, f"Prediction failed: {e}")
-        
-    return {"predicted_rul": max(0.0, rul)}
+    return {"predicted_rul": min(max(0.0, rul), 125.0)}
 
 if __name__ == "__main__":
     import uvicorn

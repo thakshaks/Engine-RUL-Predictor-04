@@ -7,7 +7,7 @@ excel_path = "E:/P2/Python/TurbofanEngine/git_FD004/data/test_FD004.xlsx"
 df = pd.read_excel(excel_path)
 
 workbook = openpyxl.load_workbook("E:/P2/Python/TurbofanEngine/git_FD004/data/test_FD004.xlsx")
-sheet = workbook["Sheet2"] 
+sheet = workbook["Sheet3"] 
 
 sensors= get_sensor_cols(df)
 # pre = fit_preprocessor(df, sensors)
@@ -17,7 +17,7 @@ sensors= get_sensor_cols(df)
 
 
 
-feature_columns = ["OP_Setting 1", "OP_Setting 2", "OP_Setting 3"]+ sensors
+feature_columns = ["OP_Setting 1", "OP_Setting 2", "OP_Setting 3"]+ sensors + ["Cycles"]
 window_data = df[feature_columns].tail(30)
 l2=[]
 for eng_id,group in df.groupby("Engine"):
@@ -26,6 +26,10 @@ for eng_id,group in df.groupby("Engine"):
         window_data = group[feature_columns].tail(30)
         for index, row in window_data.iterrows():
             l1.append(row.tolist())
+    else:
+        n=30-len(group)
+        rows = group[feature_columns].values.tolist()          # the real cycles
+        l1 = rows + [list(rows[-1]) for _ in range(n)]         # copy of the last row repeated n times
     s1=dict()
     s1["sensor_data"]=l1
     fastapi_url = "http://localhost:8000/predict"
@@ -38,7 +42,7 @@ for eng_id,group in df.groupby("Engine"):
         print("Response from FastAPI:", response.json())
     else:
         l2.append("NULL")
-        print(f"Error {response.status_code}:")
+        print(f"Error {response.status_code}:", len(group))
 
 target_column = 2  
 start_row = 2
