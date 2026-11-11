@@ -39,9 +39,9 @@ EPOCHS = 20
 BATCH_SIZE = 128
 SEED = 42
 
-# def get_sensor_cols(df):
-#     drop = {f"Sensor_{i}" for i in DROP_SENSOR_IDS}
-#     return [c for c in df.columns if c.startswith("Sensor_") and c not in drop]
+def get_sensor_cols(df):
+    drop = {f"Sensor_{i}" for i in DROP_SENSOR_IDS}
+    return [c for c in df.columns if c.startswith("Sensor_") and c not in drop]
 
 def add_rul(df, cap=RUL_CAP):  
     """Run-to-failure data only (train_FD004). NOT for the benchmark test file."""
@@ -50,24 +50,24 @@ def add_rul(df, cap=RUL_CAP):
     df["RUL_Capped"] = (max_c - df[CYCLE]).clip(upper=cap)
     return df
 
-# def fit_preprocessor(train_df, sensors):
-#     """Fit on TRAIN engines only. Returns a dict that can be joblib-dumped."""
-#     km = KMeans(n_clusters=N_CONDITIONS, n_init=10, random_state=SEED)
-#     km.fit(train_df[OP_COLS])
-#     cond = km.predict(train_df[OP_COLS])
-#     grp = train_df[sensors].groupby(cond)
-#     mean = grp.mean()
-#     std = grp.std().replace(0, 1.0).fillna(1.0)
-#     return { "km": km, "sensors": sensors, "mean": mean, "std": std}
+def fit_preprocessor(train_df, sensors):
+    """Fit on TRAIN engines only. Returns a dict that can be joblib-dumped."""
+    km = KMeans(n_clusters=N_CONDITIONS, n_init=10, random_state=SEED)
+    km.fit(train_df[OP_COLS])
+    cond = km.predict(train_df[OP_COLS])
+    grp = train_df[sensors].groupby(cond)
+    mean = grp.mean()
+    std = grp.std().replace(0, 1.0).fillna(1.0)
+    return { "km": km, "sensors": sensors, "mean": mean, "std": std}
 
 
-# def apply_preprocessor(df, pre):
-#     df = df.copy()
-#     cond = pre["km"].predict(df[OP_COLS])
-#     mu = pre["mean"].loc[cond].values
-#     sd = pre["std"].loc[cond].values
-#     df[pre["sensors"]] = (df[pre["sensors"]].values - mu) / sd
-#     return df 
+def apply_preprocessor(df, pre):
+    df = df.copy()
+    cond = pre["km"].predict(df[OP_COLS])
+    mu = pre["mean"].loc[cond].values
+    sd = pre["std"].loc[cond].values
+    df[pre["sensors"]] = (df[pre["sensors"]].values - mu) / sd
+    return df 
 
 def make_train_windows(df, feats):
     """All stride-1 windows of length WINDOW. Returns X, y, engine ids, cycle at window end."""
@@ -203,54 +203,54 @@ def main():
     print(X_tr[0])
     print("Windows:", X_tr.shape, X_val.shape, "| tabular:", Xt_tr.shape)
 
-#     db_path = Path("E:/P2/Python/TurbofanEngine/git_FD004/mlflow_artifacts/mlflow.db").resolve().as_uri()
-#     # This converts the path to: sqlite:///E:/P2/Python/TurbofanEngine/mlflow.db under the hood correctly or file:/// equivalent for MLflow backend config
-#     for i in range (1,6):
-#         mlflow.set_tracking_uri(f"sqlite:///{db_path.split(':///')[1]}")
-#         mlflow.create_experiment(f"cmapss_turbofan_experiment_{i}", artifact_location="E:/P2/Python/TurbofanEngine/git_FD004/mlruns2")
-#         mlflow.set_experiment(f"cmapss_turbofan_experiment_{i}")
+    db_path = Path("E:/P2/Python/TurbofanEngine/git_FD004/mlflow_artifacts/mlflow.db").resolve().as_uri()
+    # This converts the path to: sqlite:///E:/P2/Python/TurbofanEngine/mlflow.db under the hood correctly or file:/// equivalent for MLflow backend config
+    for i in range (1,6):
+        mlflow.set_tracking_uri(f"sqlite:///{db_path.split(':///')[1]}")
+        mlflow.create_experiment(f"cmapss_turbofan_experiment_{i}", artifact_location="E:/P2/Python/TurbofanEngine/git_FD004/mlruns2")
+        mlflow.set_experiment(f"cmapss_turbofan_experiment_{i}")
 
-#         with mlflow.start_run(run_name="xgb"):
-#             xgb_model = train_xgb(Xt_tr, y_tr, Xt_val, y_val)
-#             mlflow.sklearn.log_model(
-#                 xgb_model,
-#                 name="XGB_Model",
-#                 skops_trusted_types=[
-#                     "sklearn.tree._tree.Tree",
-#                     "xgboost.core.Booster",
-#                     "xgboost.sklearn.XGBRegressor",
-#                 ],
-#             )
-#             p_xgb_val = xgb_model.predict(Xt_val)
-#             rmse2, mae, r2, nasa = evaluate_predictions(y_val, p_xgb_val)
-#             log_metrics(rmse2, mae, r2, nasa)
+        with mlflow.start_run(run_name="xgb"):
+            xgb_model = train_xgb(Xt_tr, y_tr, Xt_val, y_val)
+            mlflow.sklearn.log_model(
+                xgb_model,
+                name="XGB_Model",
+                skops_trusted_types=[
+                    "sklearn.tree._tree.Tree",
+                    "xgboost.core.Booster",
+                    "xgboost.sklearn.XGBRegressor",
+                ],
+            )
+            p_xgb_val = xgb_model.predict(Xt_val)
+            rmse2, mae, r2, nasa = evaluate_predictions(y_val, p_xgb_val)
+            log_metrics(rmse2, mae, r2, nasa)
 
-#         # --- NN ---
-#         with mlflow.start_run(run_name="cnn_gru"):
-#             nets = train_nn_ensemble(X_tr, y_tr, X_val, y_val, OUT_DIR)
-#             mlflow.keras.log_model(nets, name="CNN_GRU")
-#             p_nn_val = predict_nn(nets, X_val)
-#             rmse2, mae, r2, nasa = evaluate_predictions(y_val, p_nn_val)
-#             log_metrics(rmse2, mae, r2, nasa)
+        # --- NN ---
+        with mlflow.start_run(run_name="cnn_gru"):
+            nets = train_nn_ensemble(X_tr, y_tr, X_val, y_val, OUT_DIR)
+            mlflow.keras.log_model(nets, name="CNN_GRU")
+            p_nn_val = predict_nn(nets, X_val)
+            rmse2, mae, r2, nasa = evaluate_predictions(y_val, p_nn_val)
+            log_metrics(rmse2, mae, r2, nasa)
 
-#         with mlflow.start_run(run_name="blended"):
-#             w = tune_blend(p_nn_val, p_xgb_val, y_val)
-#             rmse2, mae, r2, nasa = evaluate_predictions(y_val, w * p_nn_val + (1 - w) * p_xgb_val)
-#             mlflow.log_metrics({"Optimised Weight": w,})
-#             log_metrics(rmse2, mae, r2, nasa)
+        with mlflow.start_run(run_name="blended"):
+            w = tune_blend(p_nn_val, p_xgb_val, y_val)
+            rmse2, mae, r2, nasa = evaluate_predictions(y_val, w * p_nn_val + (1 - w) * p_xgb_val)
+            mlflow.log_metrics({"Optimised Weight": w,})
+            log_metrics(rmse2, mae, r2, nasa)
 
-#     # Blend weight on validation
-#     #p_nn_val, p_xgb_val = predict_nn(nets, X_val), xgb_model.predict(Xt_val)
-#     #w = tune_blend(p_nn_val, p_xgb_val, y_val)
-#     print(f"\nValidation RMSE (all windows of held-out engines)")
-#     print(f"  XGBoost : {rmse(y_val, p_xgb_val):.3f}")
-#     print(f"  CNN-GRU : {rmse(y_val, p_nn_val):.3f}")
-#     print(f"  Blend   : {rmse(y_val, w * p_nn_val + (1 - w) * p_xgb_val):.3f}  (NN weight {w:.2f})")
-#     print(f"  Error correlation NN vs XGB: "f"{np.corrcoef(p_nn_val - y_val, p_xgb_val - y_val)[0, 1]:.3f}")
+    # Blend weight on validation
+    #p_nn_val, p_xgb_val = predict_nn(nets, X_val), xgb_model.predict(Xt_val)
+    #w = tune_blend(p_nn_val, p_xgb_val, y_val)
+    print(f"\nValidation RMSE (all windows of held-out engines)")
+    print(f"  XGBoost : {rmse(y_val, p_xgb_val):.3f}")
+    print(f"  CNN-GRU : {rmse(y_val, p_nn_val):.3f}")
+    print(f"  Blend   : {rmse(y_val, w * p_nn_val + (1 - w) * p_xgb_val):.3f}  (NN weight {w:.2f})")
+    print(f"  Error correlation NN vs XGB: "f"{np.corrcoef(p_nn_val - y_val, p_xgb_val - y_val)[0, 1]:.3f}")
     
-#     # json.dump({"nn_weight": w, "window": WINDOW, "rul_cap": RUL_CAP,
-#     #            "sensors": sensors, "n_nn_models": N_NN_SEEDS},
-#     #             open(OUT_DIR / "config.json", "w"), indent=2)
+    # json.dump({"nn_weight": w, "window": WINDOW, "rul_cap": RUL_CAP,
+    #            "sensors": sensors, "n_nn_models": N_NN_SEEDS},
+    #             open(OUT_DIR / "config.json", "w"), indent=2)
 
 if __name__ == "__main__":
     main()

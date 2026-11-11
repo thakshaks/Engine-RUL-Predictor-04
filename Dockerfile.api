@@ -1,0 +1,21 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# System dependencies for XGBoost / C++ runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy model artifacts, preprocessor, and app code
+COPY models/ /app/models/
+COPY artifacts_hybrid/ /app/artifacts_hybrid/
+COPY src/ /app/src/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]

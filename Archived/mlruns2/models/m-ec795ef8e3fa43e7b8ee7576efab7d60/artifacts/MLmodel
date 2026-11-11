@@ -1,0 +1,20 @@
+artifact_path: e:/P2/Python/TurbofanEngine/git/mlruns2/models/m-ec795ef8e3fa43e7b8ee7576efab7d60/artifacts
+flavors:
+  keras:
+    data: data
+    keras_backend: tensorflow
+    keras_version: 3.15.1
+    save_exported_model: false
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.keras
+    python_version: 3.12.7
+mlflow_version: 3.17.1
+model_id: m-ec795ef8e3fa43e7b8ee7576efab7d60
+model_size_bytes: 243368
+model_uuid: m-ec795ef8e3fa43e7b8ee7576efab7d60
+prompts: null
+run_id: d7cd7f6b89b948e29ea9ff9604d23803
+utc_time_created: '2026-10-19 06:31:10.281059'
