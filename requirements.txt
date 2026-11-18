@@ -9,3 +9,5 @@ xgboost
 skops
 requests
 kafka-python
+keras
+prometheus-fastapi-instrumentator

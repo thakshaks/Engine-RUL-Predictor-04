@@ -1,9 +1,9 @@
-FROM python:3.10-slim
-
+FROM python:3.11-slim
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install openpyxl
 
 COPY kafka/producer.py /app/producer.py
 COPY data/test_FD004.xlsx /app/test_FD004.xlsx

@@ -8,17 +8,32 @@ import tensorflow as tf
 import xgboost as xgb
 import os
 from pathlib import Path
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Histogram, Counter
+
 
 WINDOW = 30
 NN_WEIGHT = 0.45          # Must equal your blend weight
 state = {}
 USE_XGB = True 
 
-BASE = Path("E:/P2/Python/TurbofanEngine/git_FD004")
+BASE = Path("/app")
 NN_PATH = BASE / "models" / "model.keras"
 XGB_PATH = BASE / "models" / "model.skops" 
 PRE_PATH = BASE / "artifacts_hybrid" / "preproc.joblib"
 
+
+
+# Define custom metrics at module level
+RUL_PREDICTIONS = Histogram(
+    "predicted_rul_cycles",
+    "Distribution of predicted Remaining Useful Life in cycles",
+    buckets=[10, 20, 30, 50, 75, 100, 125, 150]
+)
+CRITICAL_ALERTS = Counter(
+    "critical_rul_alerts_total",
+    "Number of predictions below critical RUL threshold (< 20 cycles)"
+)
 
 
 @asynccontextmanager
@@ -45,6 +60,9 @@ async def lifespan(app):
     yield
 
 app = FastAPI(title="NASA C-MAPSS RUL Predictor", version="1.0", lifespan=lifespan)
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
 
 class Payload(BaseModel):
     sensor_data: list
@@ -93,8 +111,14 @@ def predict(p: Payload):
             rul = NN_WEIGHT * p_nn + (1 - NN_WEIGHT) * float(state["xgb"].predict(T)[0])
         else:
             rul = p_nn
+    
     except Exception as e:
         raise HTTPException(500, f"Prediction failed: {e}")
+    
+    final_rul = max(0.0, rul)
+    RUL_PREDICTIONS.observe(final_rul)
+    if final_rul < 20.0:
+        CRITICAL_ALERTS.inc()
     return {"predicted_rul": min(max(0.0, rul), 125.0)}
 
 if __name__ == "__main__":

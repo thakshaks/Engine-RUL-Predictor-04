@@ -2,13 +2,17 @@ import json
 import requests
 from collections import defaultdict, deque
 from kafka import KafkaConsumer
+import os
 
 # Maintain a rolling 30-cycle buffer for each engine ID
 engine_windows = defaultdict(lambda: deque(maxlen=30))
 
+BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8000/predict")
+
 consumer = KafkaConsumer(
     'engine-telemetry',
-    bootstrap_servers=['localhost:9092'],
+    bootstrap_servers=[BOOTSTRAP],
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
@@ -35,7 +39,7 @@ for message in consumer:
 
         try:
             # Call your running FastAPI application endpoint
-            response = requests.post("http://localhost:8000/predict", json=payload)
+            response = requests.post(FASTAPI_URL, json=payload)
             if response.status_code == 200:
                 result = response.json()
                 print(f"[RUL Prediction] Engine {engine_id} | Predicted Remaining Useful Life: {result['predicted_rul']:.2f} cycles")

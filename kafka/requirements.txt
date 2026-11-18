@@ -9,3 +9,4 @@ xgboost
 skops
 requests
 kafka-python
+openpyxl
